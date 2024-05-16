@@ -1,0 +1,50 @@
+name: mqtt-broker
+services:
+  emqx:
+    container_name: emqx
+    image: emqx/emqx:5.6.1
+    ports:
+      - 1883:1883
+      - 8083:8083
+      - 8084:8084
+      - 18083:18083
+      - 14567:14567/udp
+    environment:
+        EMQX_LISTENERS__QUIC__DEFAULT__keyfile: /etc/certs/key.pem
+        EMQX_LISTENERS__QUIC__DEFAULT__certfile: /etc/certs/cert.pem
+        EMQX_LISTENERS__QUIC__DEFAULT__ENABLED: true
+        EMQX_API_KEY__BOOTSTRAP_FILE: '"/opt/emqx/data/bootstrap-api"'
+        EMQX_DASHBOARD__LISTENERS__HTTPS__BIND: 18084
+    volumes:
+      - ./emqx.conf:/opt/emqx/etc/emqx.conf
+      - ./bootstrap-api:/opt/emqx/data/bootstrap-api
+    # healthcheck:
+    #   test: ["CMD", "emqx", "ping"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+  exporter:
+    image: emqx/emqx-exporter:0.2.3
+    ports:
+      - 8085:8085
+    volumes:
+      - ./metrics/emqx-exporter.yaml:/usr/local/emqx-exporter/bin/config.yaml
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./metrics/prometheus-emqx.yaml:/etc/prometheus/prometheus.yml
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    volumes:
+      - ./metrics/grafana-dashboard-definition:/grafana-dashboard-definitions
+      - ./metrics/grafana-dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml
+      - ./metrics/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml
+
+networks:
+  default:
+    name: mqtt
+    external: true
